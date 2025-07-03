@@ -37,17 +37,19 @@ npm install
 
 ### Environment Setup
 
-Create a `.env` file in the project root (you can copy from `env.example`):
+Create a `.env` file in the project root:
 
 ```bash
-cp env.example .env
+echo "OPENROUTER_API_KEY=your_openrouter_api_key_here" > .env
 ```
 
-Then edit `.env` with your API key:
+Or create the file manually with your OpenRouter API key:
 
 ```env
 OPENROUTER_API_KEY=your_openrouter_api_key_here
 ```
+
+**Note**: Get your OpenRouter API key from https://openrouter.ai/keys
 
 ### Running the Agent
 
