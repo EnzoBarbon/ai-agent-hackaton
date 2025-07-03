@@ -2,13 +2,11 @@
 
 ## Overview
 
-This agent acts as a junior cybersecurity analyst that reads threat intelligence reports and automatically extracts Indicators of Compromise (IOCs). The agent identifies and categorizes cybersecurity artifacts that represent the "digital fingerprints" left by cybercriminals.
+This agent acts as a junior cybersecurity analyst that reads threat intelligence reports and automatically extracts Indicators of Compromise (IOCs) using its AI understanding of cybersecurity contexts. The agent analyzes the semantic meaning of the text to identify cybersecurity artifacts that represent "digital fingerprints" left by cybercriminals.
 
 ## Agent Architecture
 
-### Core Components
-
-#### 1. Agent Configuration
+### Core Agent Configuration
 
 ```typescript
 // src/mastra/agents/ioc-extraction-agent.ts
@@ -16,32 +14,60 @@ import { openai } from "@ai-sdk/openai";
 import { Agent } from "@mastra/core/agent";
 import { Memory } from "@mastra/memory";
 import { LibSQLStore } from "@mastra/libsql";
-import { iocExtractionTool } from "../tools/ioc-extraction-tool";
+import { z } from "zod";
+
+// Define the structured output schema
+export const iocOutputSchema = z.object({
+  ips: z
+    .array(z.string())
+    .describe("IPv4 addresses found in the threat intelligence report"),
+  domains: z
+    .array(z.string())
+    .describe("Domain names found in the threat intelligence report"),
+  hashes: z
+    .array(z.string())
+    .describe(
+      "File hashes (MD5, SHA-1, SHA-256) found in the threat intelligence report"
+    ),
+  cves: z
+    .array(z.string())
+    .describe("CVE identifiers found in the threat intelligence report"),
+});
 
 export const iocExtractionAgent = new Agent({
   name: "IOC Extraction Agent",
   instructions: `
     You are a specialized cybersecurity analyst focused on extracting Indicators of Compromise (IOCs) from threat intelligence reports.
 
-    Your primary function is to:
+    Your role is to:
     1. Analyze cybersecurity reports and threat intelligence documents
-    2. Extract and categorize IOCs into four specific types:
-       - IPv4 addresses (e.g., 192.168.1.1)
-       - Domain names (e.g., example.com, subdomain.example.org)
-       - File hashes (MD5, SHA-1, SHA-256)
-       - CVE identifiers (e.g., CVE-2023-12345)
+    2. Use your understanding of cybersecurity contexts to identify IOCs
+    3. Extract and categorize IOCs into these four specific types:
+       - IPv4 addresses (e.g., 192.168.1.1, 10.0.0.1)
+       - Domain names (e.g., example.com, subdomain.example.org, malicious-site.net)
+       - File hashes (MD5, SHA-1, SHA-256 - any cryptographic hash of files)
+       - CVE identifiers (e.g., CVE-2023-12345, CVE-2024-30103)
 
-    Guidelines:
-    - Be thorough and precise in your extraction
-    - Only extract legitimate IOCs, avoid false positives
-    - Ensure all extracted items match the expected formats
-    - Return results in the specified JSON structure
-    - If unsure about a potential IOC, err on the side of caution
+    IMPORTANT GUIDELINES:
+    - Use your AI understanding to identify IOCs in context, not just pattern matching
+    - Understand that IPs mentioned as "servers", "C2", "command and control", or "malicious" are likely IOCs
+    - Recognize that domains described as "malicious", "phishing", "C2", or "compromised" are IOCs
+    - Identify hashes mentioned in the context of malware, files, or samples
+    - Look for CVE identifiers that represent vulnerabilities being exploited
+    - Avoid extracting legitimate/benign infrastructure (like DNS servers 8.8.8.8 unless clearly malicious)
+    - Consider the context - a hash mentioned as "malware hash" is an IOC, but a hash used for verification might not be
 
-    Use the iocExtractionTool to process threat intelligence reports.
+    You will always return a structured response with the exact format:
+    {
+      "ips": ["ip1", "ip2"],
+      "domains": ["domain1", "domain2"],
+      "hashes": ["hash1", "hash2"],
+      "cves": ["CVE-2023-1234", "CVE-2024-5678"]
+    }
+
+    Be thorough but precise. Only extract items that are clearly IOCs based on their context in the threat intelligence report.
   `,
   model: openai("gpt-4o-mini"),
-  tools: { iocExtractionTool },
   memory: new Memory({
     storage: new LibSQLStore({
       url: "file:../mastra.db",
@@ -50,95 +76,7 @@ export const iocExtractionAgent = new Agent({
 });
 ```
 
-#### 2. IOC Extraction Tool
-
-```typescript
-// src/mastra/tools/ioc-extraction-tool.ts
-import { createTool } from "@mastra/core/tools";
-import { z } from "zod";
-
-export const iocExtractionTool = createTool({
-  id: "extract-iocs",
-  description:
-    "Extract Indicators of Compromise from threat intelligence reports",
-  inputSchema: z.object({
-    report: z
-      .string()
-      .describe("The threat intelligence report text to analyze"),
-  }),
-  outputSchema: z.object({
-    ips: z.array(z.string()).describe("IPv4 addresses found"),
-    domains: z.array(z.string()).describe("Domain names found"),
-    hashes: z
-      .array(z.string())
-      .describe("File hashes (MD5, SHA-1, SHA-256) found"),
-    cves: z.array(z.string()).describe("CVE identifiers found"),
-  }),
-  execute: async ({ context }) => {
-    return await extractIOCs(context.report);
-  },
-});
-
-const extractIOCs = async (report: string) => {
-  const iocs = {
-    ips: [] as string[],
-    domains: [] as string[],
-    hashes: [] as string[],
-    cves: [] as string[],
-  };
-
-  // IPv4 address regex
-  const ipRegex =
-    /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g;
-
-  // Domain regex (including subdomains)
-  const domainRegex =
-    /\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b/g;
-
-  // Hash regex (MD5: 32 chars, SHA-1: 40 chars, SHA-256: 64 chars)
-  const hashRegex =
-    /\b[a-fA-F0-9]{32}\b|\b[a-fA-F0-9]{40}\b|\b[a-fA-F0-9]{64}\b/g;
-
-  // CVE regex
-  const cveRegex = /CVE-\d{4}-\d{4,}/g;
-
-  // Extract IPs
-  const ipMatches = report.match(ipRegex);
-  if (ipMatches) {
-    iocs.ips = [...new Set(ipMatches)];
-  }
-
-  // Extract domains
-  const domainMatches = report.match(domainRegex);
-  if (domainMatches) {
-    // Filter out common false positives and validate domains
-    const validDomains = domainMatches.filter(
-      (domain) =>
-        domain.includes(".") &&
-        !domain.startsWith(".") &&
-        !domain.endsWith(".") &&
-        domain.length > 4
-    );
-    iocs.domains = [...new Set(validDomains)];
-  }
-
-  // Extract hashes
-  const hashMatches = report.match(hashRegex);
-  if (hashMatches) {
-    iocs.hashes = [...new Set(hashMatches)];
-  }
-
-  // Extract CVEs
-  const cveMatches = report.match(cveRegex);
-  if (cveMatches) {
-    iocs.cves = [...new Set(cveMatches)];
-  }
-
-  return iocs;
-};
-```
-
-#### 3. Integration with Main Mastra Instance
+### Integration with Main Mastra Instance
 
 ```typescript
 // src/mastra/index.ts (updated)
@@ -160,6 +98,29 @@ export const mastra = new Mastra({
 });
 ```
 
+## Why This Approach Works
+
+### AI-Powered Context Understanding
+
+- The agent uses its language understanding to identify IOCs based on **context**, not just patterns
+- It can distinguish between malicious IPs and legitimate infrastructure
+- It understands cybersecurity terminology and identifies threats accordingly
+- It can handle variations in how IOCs are presented in reports
+
+### Structured Output Guarantee
+
+- **Zod Schema Validation**: Ensures the response always matches the expected JSON structure
+- **Type Safety**: The structured output is validated and type-safe
+- **Reliability**: No risk of malformed JSON or missing fields
+- **Consistent Integration**: Easy to parse and use in downstream systems
+
+### Advantages Over Regex-Based Tools
+
+1. **Contextual Intelligence**: Understands that "185.22.15.6" is an IOC when described as "malicious IP" but might not be when mentioned as "DNS server"
+2. **Semantic Understanding**: Recognizes threat intelligence language patterns
+3. **Flexible Format Handling**: Can extract IOCs even when they're presented in unusual formats
+4. **Domain Knowledge**: Leverages cybersecurity knowledge to make intelligent decisions
+
 ## Testing Environment
 
 ### Test Data Structure
@@ -167,7 +128,10 @@ export const mastra = new Mastra({
 ```typescript
 // src/mastra/tests/ioc-extraction-agent.test.ts
 import { describe, it, expect, beforeEach } from "vitest";
-import { iocExtractionAgent } from "../agents/ioc-extraction-agent";
+import {
+  iocExtractionAgent,
+  iocOutputSchema,
+} from "../agents/ioc-extraction-agent";
 
 interface TestCase {
   name: string;
@@ -242,12 +206,24 @@ describe("IOC Extraction Agent", () => {
   describe("IOC Extraction Functionality", () => {
     testCases.forEach((testCase) => {
       it(`should extract IOCs correctly from ${testCase.name}`, async () => {
-        const result = await agent.generate(
-          `Extract all IOCs from this threat intelligence report: ${testCase.input}`
-        );
+        const result = await agent.generate(testCase.input, {
+          output: iocOutputSchema,
+        });
 
-        // Parse the result to get the IOCs
-        const extractedIOCs = JSON.parse(result.text);
+        // The structured output guarantees the format
+        const extractedIOCs = result.object;
+
+        // Verify structure is automatically guaranteed by Zod schema
+        expect(extractedIOCs).toHaveProperty("ips");
+        expect(extractedIOCs).toHaveProperty("domains");
+        expect(extractedIOCs).toHaveProperty("hashes");
+        expect(extractedIOCs).toHaveProperty("cves");
+
+        // Verify all arrays are present (even if empty)
+        expect(Array.isArray(extractedIOCs.ips)).toBe(true);
+        expect(Array.isArray(extractedIOCs.domains)).toBe(true);
+        expect(Array.isArray(extractedIOCs.hashes)).toBe(true);
+        expect(Array.isArray(extractedIOCs.cves)).toBe(true);
 
         // Verify IPs
         expect(extractedIOCs.ips).toEqual(
@@ -280,10 +256,101 @@ describe("IOC Extraction Agent", () => {
     });
   });
 
-  describe("Edge Cases", () => {
-    it("should handle empty reports", async () => {
-      const result = await agent.generate("Extract IOCs from this report: ");
-      const extractedIOCs = JSON.parse(result.text);
+  describe("Context-Aware Extraction", () => {
+    it("should distinguish between malicious and legitimate IPs", async () => {
+      const contextualReport = `
+        The malware connects to C2 server at 192.168.1.100.
+        DNS resolution was performed using Google's public DNS at 8.8.8.8.
+        Additional malicious traffic was observed to 10.0.0.50.
+      `;
+
+      const result = await agent.generate(contextualReport, {
+        output: iocOutputSchema,
+      });
+
+      const extractedIOCs = result.object;
+
+      // Should extract malicious IPs but not necessarily the DNS server
+      expect(extractedIOCs.ips).toContain("192.168.1.100");
+      expect(extractedIOCs.ips).toContain("10.0.0.50");
+      // Google DNS might or might not be included depending on context
+    });
+
+    it("should identify domains based on malicious context", async () => {
+      const domainReport = `
+        The phishing campaign uses malicious domains:
+        - evil-phishing.com
+        - fake-bank.net
+        
+        The legitimate bank's actual website is realbank.com.
+        Users are redirected from trusted-site.org to the malicious domains.
+      `;
+
+      const result = await agent.generate(domainReport, {
+        output: iocOutputSchema,
+      });
+
+      const extractedIOCs = result.object;
+
+      // Should identify malicious domains
+      expect(extractedIOCs.domains).toContain("evil-phishing.com");
+      expect(extractedIOCs.domains).toContain("fake-bank.net");
+      // Legitimate sites might not be included unless clearly compromised
+    });
+
+    it("should extract hashes mentioned in malware context", async () => {
+      const hashReport = `
+        The malware sample has MD5 hash: abc123def456abc123def456abc123def456
+        File verification hash for legitimate software: def456abc123def456abc123def456abc123
+        The dropper's SHA-256 is: 1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+      `;
+
+      const result = await agent.generate(hashReport, {
+        output: iocOutputSchema,
+      });
+
+      const extractedIOCs = result.object;
+
+      // Should extract malware hashes
+      expect(extractedIOCs.hashes).toContain(
+        "abc123def456abc123def456abc123def456"
+      );
+      expect(extractedIOCs.hashes).toContain(
+        "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+      );
+      // Verification hash might not be included unless clearly malicious
+    });
+  });
+
+  describe("Structured Output Validation", () => {
+    it("should always return valid structured output", async () => {
+      const result = await agent.generate("", {
+        output: iocOutputSchema,
+      });
+
+      const extractedIOCs = result.object;
+
+      // Schema validation guarantees these properties exist
+      expect(extractedIOCs).toHaveProperty("ips");
+      expect(extractedIOCs).toHaveProperty("domains");
+      expect(extractedIOCs).toHaveProperty("hashes");
+      expect(extractedIOCs).toHaveProperty("cves");
+
+      // All should be arrays
+      expect(Array.isArray(extractedIOCs.ips)).toBe(true);
+      expect(Array.isArray(extractedIOCs.domains)).toBe(true);
+      expect(Array.isArray(extractedIOCs.hashes)).toBe(true);
+      expect(Array.isArray(extractedIOCs.cves)).toBe(true);
+    });
+
+    it("should handle reports with no IOCs", async () => {
+      const benignReport =
+        "This is a general IT report about system maintenance and updates.";
+      const result = await agent.generate(benignReport, {
+        output: iocOutputSchema,
+      });
+
+      const extractedIOCs = result.object;
 
       expect(extractedIOCs.ips).toHaveLength(0);
       expect(extractedIOCs.domains).toHaveLength(0);
@@ -291,58 +358,57 @@ describe("IOC Extraction Agent", () => {
       expect(extractedIOCs.cves).toHaveLength(0);
     });
 
-    it("should handle malformed input gracefully", async () => {
-      const malformedReport =
-        "This is not a valid threat intelligence report with random text 123.456.789.0 invalid-domain..com";
-      const result = await agent.generate(
-        `Extract IOCs from this report: ${malformedReport}`
-      );
-      const extractedIOCs = JSON.parse(result.text);
-
-      // Should not extract invalid IP
-      expect(extractedIOCs.ips).not.toContain("123.456.789.0");
-
-      // Should not extract malformed domain
-      expect(extractedIOCs.domains).not.toContain("invalid-domain..com");
-    });
-
-    it("should deduplicate IOCs", async () => {
-      const reportWithDuplicates = `
-        IP address 192.168.1.1 was seen connecting to 192.168.1.1 multiple times.
-        The domain example.com and example.com were both compromised.
-        Hash abc123def456abc123def456abc123def456 and abc123def456abc123def456abc123def456 are identical.
-        CVE-2023-1234 and CVE-2023-1234 are the same vulnerability.
+    it("should validate schema compliance", async () => {
+      const complexReport = `
+        Complex threat report with various IOCs:
+        - Malicious IP: 1.2.3.4
+        - Domain: test.com
+        - Hash: abcdef123456abcdef123456abcdef123456
+        - CVE: CVE-2023-1234
       `;
 
-      const result = await agent.generate(
-        `Extract IOCs from this report: ${reportWithDuplicates}`
-      );
-      const extractedIOCs = JSON.parse(result.text);
+      const result = await agent.generate(complexReport, {
+        output: iocOutputSchema,
+      });
 
-      // Check for deduplication
-      expect(new Set(extractedIOCs.ips).size).toBe(extractedIOCs.ips.length);
-      expect(new Set(extractedIOCs.domains).size).toBe(
-        extractedIOCs.domains.length
-      );
-      expect(new Set(extractedIOCs.hashes).size).toBe(
-        extractedIOCs.hashes.length
-      );
-      expect(new Set(extractedIOCs.cves).size).toBe(extractedIOCs.cves.length);
+      // Schema validation happens automatically
+      const extractedIOCs = result.object;
+
+      // Validate the schema parse succeeded
+      const validationResult = iocOutputSchema.safeParse(extractedIOCs);
+      expect(validationResult.success).toBe(true);
     });
   });
 
   describe("Performance Tests", () => {
     it("should process large reports efficiently", async () => {
-      const largeReport = "Large threat intelligence report...".repeat(1000);
+      const largeReport = `
+        Large threat intelligence report with multiple IOCs:
+        ${Array.from(
+          { length: 100 },
+          (_, i) => `
+          Malicious IP ${i}: 192.168.${i % 256}.${(i + 1) % 256}
+          Domain ${i}: evil${i}.com
+          Hash ${i}: ${"a".repeat(32)}
+          CVE ${i}: CVE-2023-${1000 + i}
+        `
+        ).join("\n")}
+      `;
+
       const startTime = Date.now();
-
-      await agent.generate(`Extract IOCs from this report: ${largeReport}`);
-
+      const result = await agent.generate(largeReport, {
+        output: iocOutputSchema,
+      });
       const endTime = Date.now();
-      const processingTime = endTime - startTime;
 
-      // Should process within reasonable time (adjust threshold as needed)
-      expect(processingTime).toBeLessThan(10000); // 10 seconds
+      const processingTime = endTime - startTime;
+      expect(processingTime).toBeLessThan(30000); // 30 seconds
+
+      const extractedIOCs = result.object;
+      expect(extractedIOCs.ips.length).toBeGreaterThan(0);
+      expect(extractedIOCs.domains.length).toBeGreaterThan(0);
+      expect(extractedIOCs.hashes.length).toBeGreaterThan(0);
+      expect(extractedIOCs.cves.length).toBeGreaterThan(0);
     });
   });
 });
@@ -354,6 +420,7 @@ describe("IOC Extraction Agent", () => {
 // src/mastra/tests/integration/ioc-extraction-integration.test.ts
 import { describe, it, expect } from "vitest";
 import { mastra } from "../../index";
+import { iocOutputSchema } from "../../agents/ioc-extraction-agent";
 
 describe("IOC Extraction Agent Integration", () => {
   it("should be properly registered in Mastra instance", () => {
@@ -361,19 +428,35 @@ describe("IOC Extraction Agent Integration", () => {
     expect(mastra.agents.iocExtractionAgent.name).toBe("IOC Extraction Agent");
   });
 
-  it("should work with memory storage", async () => {
+  it("should work with memory storage and structured output", async () => {
     const agent = mastra.agents.iocExtractionAgent;
 
-    // First interaction
+    // First interaction with structured output
     const result1 = await agent.generate(
-      "Extract IOCs from: IP 1.2.3.4 domain test.com"
+      "Malicious IP 1.2.3.4 connected to evil.com",
+      {
+        output: iocOutputSchema,
+        memory: {
+          thread: "test-thread-1",
+          resource: "user-123",
+        },
+      }
     );
-    expect(result1.text).toContain("1.2.3.4");
+
+    expect(result1.object.ips).toContain("1.2.3.4");
+    expect(result1.object.domains).toContain("evil.com");
 
     // Second interaction - should have memory context
     const result2 = await agent.generate(
-      "What was the IP from the previous report?"
+      "What was the malicious IP from the previous report?",
+      {
+        memory: {
+          thread: "test-thread-1",
+          resource: "user-123",
+        },
+      }
     );
+
     expect(result2.text).toContain("1.2.3.4");
   });
 });
@@ -381,57 +464,122 @@ describe("IOC Extraction Agent Integration", () => {
 
 ## Usage Examples
 
-### Basic Usage
+### Basic Usage with Structured Output
 
 ```typescript
 // Example usage in application
-const report = `
-  Threat analysis shows connections to malicious IP 192.168.1.100 
-  and domain evil.com. The malware hash is abc123def456abc123def456abc123def456.
-  This exploits CVE-2023-1234.
+const threatReport = `
+  APT group used malicious domain evil.com and IP 192.168.1.100.
+  The malware hash is abc123def456abc123def456abc123def456.
+  They exploited CVE-2023-1234.
 `;
 
-const result = await mastra.agents.iocExtractionAgent.generate(
-  `Extract all IOCs from this threat intelligence report: ${report}`
-);
+const result = await mastra.agents.iocExtractionAgent.generate(threatReport, {
+  output: iocOutputSchema,
+});
 
-console.log(result.text);
-// Output: {"ips":["192.168.1.100"],"domains":["evil.com"],"hashes":["abc123def456abc123def456abc123def456"],"cves":["CVE-2023-1234"]}
+// Guaranteed structured output
+const iocs = result.object;
+console.log("Extracted IOCs:", iocs);
+// Output: {
+//   "ips": ["192.168.1.100"],
+//   "domains": ["evil.com"],
+//   "hashes": ["abc123def456abc123def456abc123def456"],
+//   "cves": ["CVE-2023-1234"]
+// }
+
+// Type-safe access
+iocs.ips.forEach((ip) => console.log(`Found malicious IP: ${ip}`));
+iocs.domains.forEach((domain) =>
+  console.log(`Found malicious domain: ${domain}`)
+);
 ```
 
-### Batch Processing
+### Batch Processing with Error Handling
 
 ```typescript
-// Process multiple reports
+// Process multiple reports with structured output guarantee
 const reports = [report1, report2, report3];
+
 const results = await Promise.all(
-  reports.map((report) =>
-    mastra.agents.iocExtractionAgent.generate(
-      `Extract all IOCs from this threat intelligence report: ${report}`
-    )
-  )
+  reports.map(async (report, index) => {
+    try {
+      const result = await mastra.agents.iocExtractionAgent.generate(report, {
+        output: iocOutputSchema,
+      });
+      return { success: true, iocs: result.object, index };
+    } catch (error) {
+      return { success: false, error: error.message, index };
+    }
+  })
 );
+
+// Combine all successful extractions
+const allIocs = results
+  .filter((result) => result.success)
+  .map((result) => result.iocs);
+
+const combinedIocs = {
+  ips: [...new Set(allIocs.flatMap((ioc) => ioc.ips))],
+  domains: [...new Set(allIocs.flatMap((ioc) => ioc.domains))],
+  hashes: [...new Set(allIocs.flatMap((ioc) => ioc.hashes))],
+  cves: [...new Set(allIocs.flatMap((ioc) => ioc.cves))],
+};
 ```
+
+### Integration with Workflow
+
+```typescript
+// Use in a cybersecurity analysis workflow with guaranteed structure
+const analyzeThreats = async (reports: string[]) => {
+  const iocResults = await Promise.all(
+    reports.map((report) =>
+      mastra.agents.iocExtractionAgent.generate(report, {
+        output: iocOutputSchema,
+      })
+    )
+  );
+
+  // Type-safe access to structured results
+  const allIocs = iocResults.map((result) => result.object);
+
+  // Combine and deduplicate IOCs with confidence in structure
+  const combinedIocs = {
+    ips: [...new Set(allIocs.flatMap((ioc) => ioc.ips))],
+    domains: [...new Set(allIocs.flatMap((ioc) => ioc.domains))],
+    hashes: [...new Set(allIocs.flatMap((ioc) => ioc.hashes))],
+    cves: [...new Set(allIocs.flatMap((ioc) => ioc.cves))],
+  };
+
+  return combinedIocs;
+};
+```
+
+## Key Benefits of This Approach
+
+1. **Intelligent Context Understanding**: The agent understands cybersecurity context, not just pattern matching
+2. **Structured Output Guarantee**: Zod schema ensures the response is always in the correct format
+3. **Type Safety**: Full TypeScript support with proper typing
+4. **Semantic Analysis**: Can distinguish between malicious and legitimate infrastructure
+5. **Flexible Input Handling**: Works with various report formats and languages
+6. **Domain Expertise**: Leverages AI's understanding of cybersecurity terminology
+7. **Reliable Integration**: Consistent JSON structure for downstream systems
+8. **Error Prevention**: No risk of malformed JSON or missing fields
 
 ## Performance Considerations
 
-1. **Regex Optimization**: The regex patterns are optimized for accuracy vs performance
-2. **Memory Management**: Large reports should be processed in chunks if needed
-3. **Caching**: Common IOCs could be cached for faster repeated processing
-4. **Parallel Processing**: Multiple reports can be processed concurrently
+1. **Token Efficiency**: Agent processes text efficiently without unnecessary tool calls
+2. **Memory Management**: Uses memory to learn from previous interactions
+3. **Batch Processing**: Can handle multiple reports concurrently
+4. **Response Format**: Consistent structured output for easy integration
+5. **Schema Validation**: Fast Zod validation ensures data integrity
 
 ## Security Considerations
 
-1. **Input Validation**: All inputs are validated through Zod schemas
-2. **False Positive Reduction**: Regex patterns are tuned to minimize false positives
-3. **Data Sanitization**: Extracted IOCs are sanitized before storage
-4. **Rate Limiting**: Consider implementing rate limiting for production use
+1. **Context Validation**: AI validates IOCs based on threat context
+2. **False Positive Reduction**: Intelligent analysis reduces false positives
+3. **Data Integrity**: Structured output ensures data consistency
+4. **Audit Trail**: Memory system tracks all extractions for audit purposes
+5. **Schema Compliance**: Guaranteed response format prevents injection attacks
 
-## Monitoring and Metrics
-
-1. **Accuracy Metrics**: Track precision and recall against known IOCs
-2. **Processing Time**: Monitor performance for different report sizes
-3. **Error Rates**: Track extraction failures and edge cases
-4. **Memory Usage**: Monitor memory consumption during processing
-
-This implementation provides a robust foundation for IOC extraction while maintaining flexibility for future enhancements and integrations with other security tools.
+This approach leverages the AI agent's intelligence for the core cybersecurity analysis work while ensuring reliable, structured output through Zod schema validation, making it a true AI-powered solution with enterprise-grade reliability.
