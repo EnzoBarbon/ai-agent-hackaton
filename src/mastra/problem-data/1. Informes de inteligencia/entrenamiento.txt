@@ -1,0 +1,27 @@
+*** INFORME DE AMENAZA: Grupo 'Silent Serpent' - Q1 2025 ***
+
+Análisis de la reciente campaña de espionaje atribuida al grupo APT "Silent Serpent". El vector de entrada principal fue la explotación de la vulnerabilidad CVE-2024-30103 en servidores de correo.
+
+Una vez dentro, los actores desplegaron un malware dropper. El fichero, 'update_installer.dll', presenta el siguiente hash SHA256:
+a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2
+
+La comunicación con el servidor de Comando y Control (C2) se estableció con los siguientes dominios:
+- system-update.ddns.net
+- cdn.content-delivery.org
+
+Se observó tráfico de red hacia la dirección IP 185.22.15.6. El análisis de un segundo artefacto, 'connector.exe' (MD5: f1e2d3c4b5a6f1e2d3c4b5a6f1e2d3c4), reveló conexiones adicionales a auth.internal-service.net y a la IP 8.8.4.4.
+
+---
+*** ALERTA DE PHISHING MASIVO - Campaña 'GiftCardScam' ***
+
+Detectada una campaña de phishing a gran escala. Los emails suplantan a una conocida marca de comercio electrónico. Los dominios utilizados para alojar las páginas de phishing son:
+- your-special-reward.com
+- login.micr0soft.security-access.com
+
+Los enlaces maliciosos redirigen a servidores bajo el control de los atacantes, localizados en las IPs 199.59.243.222 y 45.137.21.53.
+
+Se recomienda a los usuarios no descargar adjuntos. Uno de los adjuntos analizados, 'regalo.zip', contenía un payload con hash SHA256 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef.
+
+La campaña explota la vulnerabilidad CVE-2023-99999 para la ejecución de código en clientes de correo desactualizados. También se ha detectado el uso del hash de fichero 9876543210fedcba9876543210fedcba (MD5).
+
+Fin del informe.

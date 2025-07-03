@@ -1,0 +1,11 @@
+Cifrado César
+Texto Cifrado: HO VRÑ EUÑOD HQ OD SODCD PDÑRU.
+Texto Original: EL SOL BRILLA EN LA PLAZA MAYOR.
+
+Sustitución Simple
+Texto Cifrado: SQ YOSQ SFXLQETGXOQ RT SQ ZCQRSQ.
+Texto Original: LA CITA SECRETA ES EL JUEVES.
+
+Vigenère
+Texto Cifrado: ZI BIKLOÑG IOÑÁ ÁS ÁGÍS Á ZQG GIÑÁI.
+Texto Original: LA REUNION SERA EN DOS HORAS.

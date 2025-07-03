@@ -1,0 +1,25 @@
+{
+  "ips": [
+    "185.22.15.6",
+    "8.8.4.4",
+    "199.59.243.222",
+    "45.137.21.53"
+  ],
+  "domains": [
+    "system-update.ddns.net",
+    "cdn.content-delivery.org",
+    "auth.internal-service.net",
+    "your-special-reward.com",
+    "login.micr0soft.security-access.com"
+  ],
+  "hashes": [
+    "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "f1e2d3c4b5a6f1e2d3c4b5a6f1e2d3c4",
+    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "9876543210fedcba9876543210fedcba"
+  ],
+  "cves": [
+    "CVE-2024-30103",
+    "CVE-2023-99999"
+  ]
+}
