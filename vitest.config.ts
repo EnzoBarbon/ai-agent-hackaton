@@ -5,5 +5,7 @@ export default defineConfig({
     environment: "node",
     globals: true,
     setupFiles: [],
+    testTimeout: 300000, // 5 minutes in milliseconds
+    hookTimeout: 300000, // 5 minutes for setup/teardown hooks
   },
 });

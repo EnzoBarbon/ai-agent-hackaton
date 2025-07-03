@@ -135,7 +135,8 @@ Partial hash from log: 5d41402abc4b...`,
         tipo: "SHA-1",
       },
       {
-        valor: "AbCdEf1234567890AbCdEf1234567890AbCdEf1234567890",
+        valor:
+          "AbCdEf1234567890AbCdEf1234567890AbCdEf1234567890AbCdEf1234567890",
         tipo: "SHA-256",
       },
       {
@@ -353,7 +354,7 @@ describe("Hash Detection Agent", () => {
           );
           expect(expectedHash).toBeDefined();
         });
-      });
+      }, 15000); // 15 second timeout for AI model calls
     });
   });
 
@@ -389,7 +390,7 @@ describe("Hash Detection Agent", () => {
           );
           console.log(`${testCase.name}: Extra hashes found:`, extraHashes);
         }
-      });
+      }, 15000); // 15 second timeout for AI model calls
     });
   });
 
@@ -411,7 +412,7 @@ describe("Hash Detection Agent", () => {
         expect(hash.valor).toHaveLength(32);
         expect(hash.tipo).toBe("MD5");
       });
-    });
+    }, 10000);
 
     it("should correctly classify SHA-1 hashes", async () => {
       const sha1Report = `
@@ -430,7 +431,7 @@ describe("Hash Detection Agent", () => {
         expect(hash.valor).toHaveLength(40);
         expect(hash.tipo).toBe("SHA-1");
       });
-    });
+    }, 10000);
 
     it("should correctly classify SHA-256 hashes", async () => {
       const sha256Report = `
@@ -449,7 +450,7 @@ describe("Hash Detection Agent", () => {
         expect(hash.valor).toHaveLength(64);
         expect(hash.tipo).toBe("SHA-256");
       });
-    });
+    }, 10000);
 
     it("should correctly classify SHA-512 hashes", async () => {
       const sha512Report = `
@@ -466,7 +467,7 @@ describe("Hash Detection Agent", () => {
       expect(hashes).toHaveLength(1);
       expect(hashes[0].valor).toHaveLength(128);
       expect(hashes[0].tipo).toBe("SHA-512");
-    });
+    }, 10000);
 
     it("should correctly classify ssdeep hashes", async () => {
       const ssdeepReport = `
@@ -486,7 +487,7 @@ describe("Hash Detection Agent", () => {
         expect(hash.valor).toContain(":");
         expect(hash.tipo).toBe("ssdeep");
       });
-    });
+    }, 10000);
 
     it("should correctly classify partial/unknown hashes", async () => {
       const partialReport = `
@@ -506,7 +507,7 @@ describe("Hash Detection Agent", () => {
         expect(hash.valor).toMatch(/\.\.\.$/); // Should end with ...
         expect(hash.tipo).toBe("parcial_desconocido");
       });
-    });
+    }, 10000);
   });
 
   describe("Structured Output Validation", () => {
@@ -520,7 +521,7 @@ describe("Hash Detection Agent", () => {
       // Schema validation guarantees these properties exist
       expect(detectedHashes).toHaveProperty("hashes");
       expect(Array.isArray(detectedHashes.hashes)).toBe(true);
-    });
+    }, 15000); // 15 second timeout for AI model calls
 
     it("should handle reports with no hashes", async () => {
       const benignReport = "This is a general IT report with no hash values.";
@@ -564,6 +565,6 @@ describe("Hash Detection Agent", () => {
           ]).toContain(hash.tipo);
         });
       }
-    });
+    }, 10000);
   });
 });
