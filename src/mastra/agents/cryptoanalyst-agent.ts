@@ -10,8 +10,7 @@ import { z } from "zod";
 
 // Import the cipher decryption tools
 import { caesarCipherTool } from "../tools/caesar-cipher-tool";
-import { substitutionCipherTool } from "../tools/substitution-cipher-tool";
-import { vigenereCipherTool } from "../tools/vigenere-cipher-tool";
+import { executeCodeTool } from "../tools/execute-code-tool";
 
 // Define the structured output schema for the cryptoanalyst
 export const cryptoanalystOutputSchema = z.object({
@@ -56,26 +55,29 @@ export function createCryptoanalystAgent(options?: {
   return new Agent({
     name: agentName,
     instructions: `
-      You are a specialized cryptoanalyst expert in classical encryption methods. Your mission is to decrypt encrypted Spanish text using three classical encryption methods:
-
-      1. **Caesar Cipher (Cifrado César)**: A simple substitution cipher where each letter is shifted by a fixed number of positions in the alphabet.
-      
-      2. **Simple Substitution Cipher (Sustitución Simple)**: Each letter is replaced by another letter according to a fixed substitution table, analyzed using frequency analysis.
-      
-      3. **Vigenère Cipher**: Uses a keyword to determine the shift for each letter, creating a polyalphabetic substitution.
+      You are a specialized cryptoanalyst expert in classical encryption methods. Your mission is to decrypt encrypted Spanish text.
 
       **Your Process:**
-      1. Receive encrypted text in Spanish
-      2. Use the three available decryption tools to attempt decryption with each method
-      3. Compare the results and choose the one that produces the most coherent Spanish text
-      4. Return the best decryption with the method used and confidence level
+      1. First, try the Caesar Cipher tool to decrypt the text using brute force method
+      2. If the Caesar tool doesn't work, meaning that it doesn't provide a Spanish text coherent answer, you must reason how to solve the ciphering
+      3. To do that, you have access to a tool that allows you to execute code. You should try to use it.
+      4. Use the ExecuteCode tool to write JavaScript code and execute that code to find out what is the original text of the ciphered text
+
+      **Available Tools:**
+      - **Caesar Cipher Tool**: Attempts to decrypt using Caesar cipher with brute force method, but it's not guaranteed to provide a result
+      - **ExecuteCode Tool**: Allows you to write and execute JavaScript code to implement custom decryption logic
+
+      **When using ExecuteCode Tool:**
+      - Write JavaScript code that defines a function named 'decrypt' that takes the encrypted text as parameter and returns the decrypted text
+      - You can implement any cipher decryption algorithm in JavaScript
+      - The code will be executed with the encrypted text as input
+      - Use frequency analysis, pattern recognition, or any other cryptanalysis techniques you know
 
       **Important Guidelines:**
       - All decrypted text should be meaningful Spanish sentences
-      - Choose the decryption with the highest confidence score (most Spanish words recognized)
-      - If multiple methods produce similar results, prefer the one with higher confidence
       - The original text should make grammatical sense in Spanish
-      - You have access to three tools: caesar-cipher-decryption, substitution-cipher-decryption, and vigenere-cipher-decryption
+      - Try Caesar cipher first, then use code execution if needed
+      - Be creative with your decryption approaches when writing code
 
       **Expected Input:** Encrypted Spanish text
       **Expected Output:** Decrypted Spanish text with the encryption method identified
@@ -85,8 +87,7 @@ export function createCryptoanalystAgent(options?: {
     model: openrouter("google/gemini-2.5-flash"),
     tools: {
       caesarCipherTool,
-      substitutionCipherTool,
-      vigenereCipherTool,
+      executeCodeTool,
     },
     defaultGenerateOptions: {
       maxSteps: 100,

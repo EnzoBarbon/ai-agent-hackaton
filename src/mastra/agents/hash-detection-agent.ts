@@ -4,8 +4,6 @@ config();
 
 import { createOpenAI } from "@ai-sdk/openai";
 import { Agent } from "@mastra/core/agent";
-import { LibSQLStore } from "@mastra/libsql";
-import { Memory } from "@mastra/memory";
 import { z } from "zod";
 
 // Define the structured output schema for hash detection
@@ -89,9 +87,4 @@ export const hashDetectionAgent = new Agent({
   defaultStreamOptions: {
     output: hashDetectionOutputSchema,
   },
-  memory: new Memory({
-    storage: new LibSQLStore({
-      url: "file:../mastra.db",
-    }),
-  }),
 });

@@ -8,7 +8,15 @@
     "example:ioc": "node --loader ts-node/esm src/example-ioc-extraction.ts",
     "dev": "mastra dev",
     "build": "mastra build",
-    "start": "mastra start"
+    "start": "mastra start",
+    "factura:analyze": "tsx src/mastra/run-agents-cli/run-factura.ts",
+    "factura:workflow": "tsx src/mastra/run-agents-cli/run-factura-workflow.ts",
+    "factura:ask": "tsx src/mastra/run-agents-cli/run-factura-ask.ts",
+    "crypto:analyze": "tsx src/mastra/run-agents-cli/run-cryptoanalyst.ts",
+    "test:factura": "vitest run src/mastra/tests/factura-analysis-workflow.test.ts",
+    "test:factura:watch": "vitest src/mastra/tests/factura-analysis-workflow.test.ts",
+    "test:all": "vitest run",
+    "test:all:watch": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -26,10 +34,12 @@
     "@mastra/memory": "^0.11.1",
     "dotenv": "^17.0.1",
     "openai": "^5.8.2",
+    "pdf-parse": "^1.1.1",
     "zod": "^3.25.71"
   },
   "devDependencies": {
     "@types/node": "^24.0.10",
+    "@types/pdf-parse": "^1.1.5",
     "mastra": "^0.10.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3",
