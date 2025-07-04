@@ -22,7 +22,7 @@ export const mastra = new Mastra({
   }),
   logger: new PinoLogger({
     name: "Mastra",
-    level: "debug", // Changed to debug to capture telemetry traces
+    level: "info", // Changed to debug to capture telemetry traces
   }),
   // Add telemetry configuration to see tool calls and execution steps
   telemetry: {

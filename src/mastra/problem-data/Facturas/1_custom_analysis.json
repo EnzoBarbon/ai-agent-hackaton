@@ -1,8 +1,8 @@
 {
-  "timestamp": "2025-07-04T10:28:40.828Z",
+  "timestamp": "2025-07-04T14:29:10.425Z",
   "inputFile": "/Users/enzobl/repos/ai-agent-hackaton/ai-agent-hackaton/src/mastra/problem-data/Facturas/1.pdf",
   "questionsAsked": [
-    "¿Cuál es mi IBAN?\n"
+    "cual es la suma del precio de la potencia  contratada (punta mas valle)"
   ],
   "structuredData": {
     "customer": {
@@ -18,13 +18,21 @@
       "iban": "ES45 6789 0123 4567 8901 2345"
     },
     "charges": {
-      "powerpunta": {
+      "powerpunta_or_total": {
         "power": 4.6,
         "charge": 18.25
       },
       "powervalle": {
         "power": 4.6,
         "charge": 12.8
+      },
+      "powerpunta_consumption_or_total": {
+        "power": 78,
+        "charge": 20.28
+      },
+      "powervalle_consumption": {
+        "power": 142,
+        "charge": 25.56
       },
       "access": 3.5,
       "equipment": 2.2,
@@ -226,8 +234,8 @@
   },
   "questionsAndAnswers": [
     {
-      "question": "¿Cuál es mi IBAN?\n",
-      "answer": "Su IBAN es ES45 6789 0123 4567 8901 2345."
+      "question": "cual es la suma del precio de la potencia  contratada (punta mas valle)",
+      "answer": "La suma del precio de la potencia contratada (punta más valle) es de 31.05 EUR."
     }
   ],
   "summary": {
